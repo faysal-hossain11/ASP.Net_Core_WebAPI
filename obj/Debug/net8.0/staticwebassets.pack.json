@@ -1,0 +1,25 @@
+{
+  "Files": [
+    {
+      "Id": "/home/faysal-hossain/Desktop/MyWebAPI/wwwroot/index.html",
+      "PackagePath": "staticwebassets/index.html"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.MyWebAPI.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.build.MyWebAPI.props",
+      "PackagePath": "build\\MyWebAPI.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildMultiTargeting.MyWebAPI.props",
+      "PackagePath": "buildMultiTargeting\\MyWebAPI.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildTransitive.MyWebAPI.props",
+      "PackagePath": "buildTransitive\\MyWebAPI.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

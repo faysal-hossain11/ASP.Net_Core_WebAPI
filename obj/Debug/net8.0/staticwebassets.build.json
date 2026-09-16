@@ -1,0 +1,39 @@
+{
+  "Version": 1,
+  "Hash": "jQ0+/JC/P0Lsj38ItPBsQihKyEAezEBICphEltb9Ogg=",
+  "Source": "MyWebAPI",
+  "BasePath": "_content/MyWebAPI",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [
+    {
+      "Name": "MyWebAPI/wwwroot",
+      "Source": "MyWebAPI",
+      "ContentRoot": "/home/faysal-hossain/Desktop/MyWebAPI/wwwroot/",
+      "BasePath": "_content/MyWebAPI",
+      "Pattern": "**"
+    }
+  ],
+  "Assets": [
+    {
+      "Identity": "/home/faysal-hossain/Desktop/MyWebAPI/wwwroot/index.html",
+      "SourceId": "MyWebAPI",
+      "SourceType": "Discovered",
+      "ContentRoot": "/home/faysal-hossain/Desktop/MyWebAPI/wwwroot/",
+      "BasePath": "_content/MyWebAPI",
+      "RelativePath": "index.html",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "PreferTarget",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot/index.html"
+    }
+  ]
+}
