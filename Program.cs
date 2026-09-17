@@ -1,19 +1,33 @@
+
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 
+
+
+
+
+
 // ১. আগে আসবে Top-Level Web Application Builder setup
 var builder = WebApplication.CreateBuilder(args);
 
+// ১. DbContext এবং PostgreSQL Services যোগ করা হলো
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 builder.Services.AddControllers();
+
 
 var app = builder.Build();
 
 app.UseAuthorization();
 app.MapControllers();
 
-app.Run(); 
+app.Run();
+
+
 
 // CreateTaskDto class  
 public class CreateTaskDto
@@ -31,32 +45,31 @@ public class TaskResponseDto
     public string Description { get; set; }
     public bool IsCompleted { get; set; }
 }
-
 [ApiController]
 [Route("api/[controller]")]
 public class TaskController : ControllerBase
 {
-    private static List<TaskResponseDto> taskList = new List<TaskResponseDto>
-    {
-        new TaskResponseDto {Id = 1, Title = "Task 1", Description = "Description for Task 1", IsCompleted = false},
-        new TaskResponseDto {Id = 2, Title = "Task 2", Description = "Description for Task 2", IsCompleted = true},
-        new TaskResponseDto {Id = 3, Title = "Task 3", Description = "Description for Task 3", IsCompleted = false},
-        new TaskResponseDto {Id = 4, Title = "Task 4", Description = "Description for Task 4", IsCompleted = true},
-    };
+    private readonly AppDbContext _context;
 
-    // get all tasks
-    [HttpGet]
-    public IActionResult GetAll()
+    // Dependency Injection-এর মাধ্যমে DbContext আনা হচ্ছে
+    public TaskController(AppDbContext context)
     {
-        return Ok(taskList);
+        _context = context;
     }
 
-
-    // get task by id
-    [HttpGet("{id}")]
-    public IActionResult GetById(int id)
+    // ১. Get All Tasks (ডাটাবেজ থেকে সব টাস্ক আনা)
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
     {
-        var task = taskList.FirstOrDefault((t) => t.Id == id);
+        var tasks = await _context.Tasks.ToListAsync();
+        return Ok(tasks);
+    }
+
+    // ২. Get Task By Id
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var task = await _context.Tasks.FindAsync(id);
         if (task == null)
         {
             return NotFound($"Task with Id {id} not found.");
@@ -64,37 +77,46 @@ public class TaskController : ControllerBase
         return Ok(task);
     }
 
-
-    // create a new task
+    // ৩. Create Task (ডাটাবেজে সেভ করা)
     [HttpPost]
-    public IActionResult Create([FromBody] CreateTaskDto dto)
+    public async Task<IActionResult> Create([FromBody] CreateTaskDto dto)
     {
-        var newTask = new TaskResponseDto {
-            Id = taskList.Count + 1,
+        var taskItem = new TaskItem
+        {
             Title = dto.Title,
             Description = dto.Description,
-            IsCompleted = false
+            IsCompleted = false,
+            CreatedAt = DateTime.UtcNow
         };
 
-        taskList.Add(newTask);
-        return CreatedAtAction(nameof(GetById), new {id = newTask.Id}, newTask);
+        _context.Tasks.Add(taskItem);
+        await _context.SaveChangesAsync(); // ডাটাবেজে পারমানেন্টলি সেভ হবে
+
+        return CreatedAtAction(nameof(GetById), new { id = taskItem.Id }, taskItem);
     }
 
-
-
-    // delete a task
+    // ৪. Delete Task (ডাটাবেজ থেকে মোছা)
     [HttpDelete("{id}")]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        var task = taskList.FirstOrDefault((t) => t.Id == id);
+        var task = await _context.Tasks.FindAsync(id);
         if (task == null)
         {
-            return NotFound($"task with Id {id} not found.");
+            return NotFound($"Task with Id {id} not found.");
         }
 
-        taskList.Remove(task);
+        _context.Tasks.Remove(task);
+        await _context.SaveChangesAsync();
+
         return NoContent();
     }
+}
+public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    public DbSet<TaskItem> Tasks { get; set; }
+}
 
 
 
@@ -103,10 +125,12 @@ public class TaskController : ControllerBase
 
 
 
-
-
-
-
-
+public class TaskItem
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool IsCompleted { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
 }
