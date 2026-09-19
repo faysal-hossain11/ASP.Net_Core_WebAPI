@@ -38,6 +38,17 @@ public class CreateTaskDto
     public string Description { get; set; }
 }
 
+// UpdateTaskDto class
+public class UpdateTaskDto
+{
+    [Required(ErrorMessage = "Title is required")]
+    [StringLength(100, MinimumLength = 1, ErrorMessage = "Title must be between 1 and 100 characters")]
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool IsCompleted { get; set; }
+}
+
+
 public class TaskResponseDto
 {
     public int Id { get; set; }
@@ -45,6 +56,10 @@ public class TaskResponseDto
     public string Description { get; set; }
     public bool IsCompleted { get; set; }
 }
+
+
+
+
 [ApiController]
 [Route("api/[controller]")]
 public class TaskController : ControllerBase
@@ -110,18 +125,55 @@ public class TaskController : ControllerBase
 
         return NoContent();
     }
+
+    // Update the single task ( find by ID ) 
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateTaskDto dto)
+    {
+        var task = await _context.Tasks.FindAsync(id);
+
+        if (task == null)
+        {
+            return NotFound($"Task with Id {id} not found");
+        }
+
+        task.Title = dto.Title;
+        task.Description = dto.Description;
+        task.IsCompleted = dto.IsCompleted;
+
+        await _context.SaveChangesAsync();
+        return Ok(task);
+    }
+
+    // toggle complete status
+    [HttpPatch("{id}/toggle-status")]
+    public async Task<IActionResult> ToggleStatus(int id)
+    {
+        var task = await _context.Tasks.FindAsync(id);
+
+        if (task == null)
+        {
+            return NotFound($"Task with Id {id} not found");
+        }
+
+        task.IsCompleted = !task.IsCompleted;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(task);
+    }
+
+
 }
+
+
+
 public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<TaskItem> Tasks { get; set; }
 }
-
-
-
-
-
 
 
 
