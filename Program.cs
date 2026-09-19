@@ -7,13 +7,14 @@ using System.Linq;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 
 var app = builder.Build();
 
 app.UseAuthorization();
 app.MapControllers();
 
-app.Run(); 
+app.Run();
 
 // CreateTaskDto class  
 public class CreateTaskDto
@@ -32,31 +33,29 @@ public class TaskResponseDto
     public bool IsCompleted { get; set; }
 }
 
+
 [ApiController]
 [Route("api/[controller]")]
 public class TaskController : ControllerBase
 {
-    private static List<TaskResponseDto> taskList = new List<TaskResponseDto>
-    {
-        new TaskResponseDto {Id = 1, Title = "Task 1", Description = "Description for Task 1", IsCompleted = false},
-        new TaskResponseDto {Id = 2, Title = "Task 2", Description = "Description for Task 2", IsCompleted = true},
-        new TaskResponseDto {Id = 3, Title = "Task 3", Description = "Description for Task 3", IsCompleted = false},
-        new TaskResponseDto {Id = 4, Title = "Task 4", Description = "Description for Task 4", IsCompleted = true},
-    };
+    private readonly ITaskRepository _repository;
 
-    // get all tasks
-    [HttpGet]
-    public IActionResult GetAll()
+    public TaskController(ITaskRepository repository)
     {
-        return Ok(taskList);
+        _repository = repository;
     }
 
-
-    // get task by id
-    [HttpGet("{id}")]
-    public IActionResult GetById(int id)
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
     {
-        var task = taskList.FirstOrDefault((t) => t.Id == id);
+        var tasks = await _repository.GetAllAsync();
+        return Ok(tasks);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var task = await _repository.GetByIdAsync(id);
         if (task == null)
         {
             return NotFound($"Task with Id {id} not found.");
@@ -64,49 +63,114 @@ public class TaskController : ControllerBase
         return Ok(task);
     }
 
-
-    // create a new task
     [HttpPost]
-    public IActionResult Create([FromBody] CreateTaskDto dto)
+    public async Task<IActionResult> Create([FromBody] CreateTaskDto dto)
     {
-        var newTask = new TaskResponseDto {
-            Id = taskList.Count + 1,
+        var taskItem = new TaskItem
+        {
             Title = dto.Title,
             Description = dto.Description,
-            IsCompleted = false
+            IsCompleted = false,
+            CreatedAt = DateTime.UtcNow
         };
 
-        taskList.Add(newTask);
-        return CreatedAtAction(nameof(GetById), new {id = newTask.Id}, newTask);
+        await _repository.AddAsync(taskItem);
+        return CreatedAtAction(nameof(GetById), new { id = taskItem.Id }, taskItem);
     }
 
-
-
-    // delete a task
-    [HttpDelete("{id}")]
-    public IActionResult Delete(int id)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateTaskDto dto)
     {
-        var task = taskList.FirstOrDefault((t) => t.Id == id);
+        var task = await _repository.GetByIdAsync(id);
         if (task == null)
         {
-            return NotFound($"task with Id {id} not found.");
+            return NotFound($"Task with Id {id} not found.");
         }
 
-        taskList.Remove(task);
-        return NoContent();
+        task.Title = dto.Title;
+        task.Description = dto.Description;
+        task.IsCompleted = dto.IsCompleted;
+
+        await _repository.UpdateAsync(task);
+        return Ok(task);
     }
 
+    [HttpPatch("{id}/toggle-status")]
+    public async Task<IActionResult> ToggleStatus(int id)
+    {
+        var task = await _repository.GetByIdAsync(id);
+        if (task == null)
+        {
+            return NotFound($"Task with Id {id} not found.");
+        }
+
+        task.IsCompleted = !task.IsCompleted;
+        await _repository.UpdateAsync(task);
+
+        return Ok(task);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var task = await _repository.GetByIdAsync(id);
+        if (task == null)
+        {
+            return NotFound($"Task with Id {id} not found.");
+        }
+
+        await _repository.DeleteAsync(task);
+        return NoContent();
+    }
+}
 
 
 
 
+public interface ITaskRepository
+{
+    Task<IEnumerable<TaskItem>> GetAllAsync();
+    Task<TaskItem?> GetByIdAsync(int id);
+    Task AddAsync(TaskItem task);
+    Task UpdateAsync(TaskItem task);
+    Task DeleteAsync(TaskItem task);
+}
 
 
+public class TaskRepository : ITaskRepository
+{
+    private readonly AppDbContext _context;
 
+    public TaskRepository(AppDbContext context)
+    {
+        _context = context;
+    }
 
+    public async Task<IEnumerable<TaskItem>> GetAllAsync()
+    {
+        return await _context.Tasks.ToListAsync();
+    }
 
+    public async Task<TaskItem?> GetByIdAsync(int id)
+    {
+        return await _context.Tasks.FindAsync(id);
+    }
 
+    public async Task AddAsync(TaskItem task)
+    {
+        await _context.Tasks.AddAsync(task);
+        await _context.SaveChangesAsync();
+    }
 
+    public async Task UpdateAsync(TaskItem task)
+    {
+        _context.Tasks.Update(task);
+        await _context.SaveChangesAsync();
+    }
 
-
+    public async Task DeleteAsync(TaskItem task)
+    {
+        _context.Tasks.Remove(task);
+        await _context.SaveChangesAsync();
+    }
 }

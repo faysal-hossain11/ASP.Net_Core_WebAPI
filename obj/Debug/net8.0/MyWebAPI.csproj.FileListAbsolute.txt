@@ -32,3 +32,4 @@
 /home/faysal-hossain/Desktop/MyWebAPI/obj/Debug/net8.0/MyWebAPI.genruntimeconfig.cache
 /home/faysal-hossain/Desktop/MyWebAPI/obj/Debug/net8.0/ref/MyWebAPI.dll
 /home/faysal-hossain/Desktop/MyWebAPI/bin/Debug/net8.0/MyWebAPI.staticwebassets.runtime.json
+/home/faysal-hossain/Desktop/MyWebAPI/obj/Debug/net8.0/MyWebAPI.sourcelink.json
