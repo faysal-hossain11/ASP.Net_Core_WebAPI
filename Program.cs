@@ -4,6 +4,13 @@ using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 
 
 // ======================================================
@@ -19,17 +26,32 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Repository এবং Service Register
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<ITaskService, TaskService>();
+// Auth Service Register
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddControllers();
-
 var app = builder.Build();
 
+app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
 
+
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"]
+        };
+    });
 
 
 // ======================================================
@@ -67,6 +89,26 @@ public class TaskResponseDto
 }
 
 
+// User Register Dto
+public class RegisterDto
+{
+    [Required]
+    public string Username { get; set; } = string.Empty;
+    [Required]
+    [MinLength(8, ErrorMessage = "Password must be at last 8 characters")]
+    public string Password { get; set; } = string.Empty;
+}
+
+// User Login Dto
+public class LoginDto
+{
+    [Required]
+    public string Username { get; set; } = string.Empty;
+    [Required]
+    public string Password { get; set; } = string.Empty;
+}
+
+
 
 // ======================================================
 // 5. TaskItem Entity
@@ -81,6 +123,15 @@ public class TaskItem
 
 }
 
+// User Entity
+public class User
+{
+    public int Id { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public byte[] PasswordHash { get; set; } = Array.Empty<byte>();
+    public byte[] PasswordSalt { get; set; } = Array.Empty<byte>();
+}
+
 
 
 // ======================================================
@@ -91,6 +142,7 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<TaskItem> Tasks { get; set; }
+    public DbSet<User> Users { get; set; }
 }
 
 
@@ -113,7 +165,7 @@ public interface ITaskRepository
 }
 
 
-
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class TaskController : ControllerBase
@@ -181,7 +233,7 @@ public class TaskController : ControllerBase
     public async Task<IActionResult> Delete(int id)
     {
         var isDelete = await _service.DeleteTaskAsync(id);
-        if(!isDelete)
+        if (!isDelete)
         {
             return NotFound($"Task with id {id} not found");
         }
@@ -317,6 +369,135 @@ public class TaskService : ITaskService
 
 
 }
+
+
+// Auth interface for Auth service
+public interface IAuthService
+{
+    Task<User?> RegisterAsync(RegisterDto dto);
+    Task<string?> LoginAsync(LoginDto dto);
+}
+
+
+// Auth Service
+public class AuthService : IAuthService
+{
+    private readonly AppDbContext _context;
+    private readonly IConfiguration _config;
+
+    public AuthService(AppDbContext context, IConfiguration config)
+    {
+        _context = context;
+        _config = config;
+    }
+
+    public async Task<User?> RegisterAsync(RegisterDto dto)
+    {
+        if (await _context.Users.AnyAsync(u => u.Username == dto.Username.ToLower()))
+            return null; // Username already exists
+
+        using var hmac = new HMACSHA512();
+
+        var user = new User
+        {
+            Username = dto.Username.ToLower(),
+            PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(dto.Password)),
+            PasswordSalt = hmac.Key
+        };
+
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        return user;
+    }
+
+
+    public async Task<string?> LoginAsync(LoginDto dto)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == dto.Username.ToLower());
+        if (user == null) return null;
+
+        using var hmac = new HMACSHA512(user.PasswordSalt);
+        var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(dto.Password));
+
+        for (int i = 0; i < computedHash.Length; i++)
+        {
+            if (computedHash[i] != user.PasswordHash[i]) return null; // Invalid password
+        }
+
+        return CreateToken(user);
+    }
+
+
+
+    private string CreateToken(User user)
+    {
+        var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new Claim(ClaimTypes.Name, user.Username)
+    };
+
+        // Configuration theke Key niye Null check kora
+        var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is missing in appsettings.json");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+
+        var tokenDescriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddDays(1),
+            SigningCredentials = creds,
+            Issuer = _config["Jwt:Issuer"],
+            Audience = _config["Jwt:Audience"]
+        };
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.CreateToken(tokenDescriptor);
+
+        return tokenHandler.WriteToken(token);
+    }
+
+}
+
+
+// user auth controller
+[ApiController]
+[Route("api/[controller]")]
+public class AuthController : ControllerBase
+{
+    private readonly IAuthService _authService;
+
+    public AuthController(IAuthService authService)
+    {
+        _authService = authService;
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+    {
+        var user = await _authService.RegisterAsync(dto);
+        if (user == null)
+        {
+            return BadRequest("User name already token");
+        }
+
+        return Ok(new { Message = "User registerd successfully" });
+    }
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginDto dto)
+    {
+        var token = await _authService.LoginAsync(dto);
+        if (token == null)
+        {
+            return Unauthorized("Invalid username or password");
+        }
+
+        return Ok(new { Token = token });
+    }
+}
+
 
 
 
