@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "jQ0+/JC/P0Lsj38ItPBsQihKyEAezEBICphEltb9Ogg=",
+  "Hash": "xwqnYlj/JfMnq7GBei1r9KxNos0e892V1la0z+uZKAI=",
   "Source": "MyWebAPI",
   "BasePath": "_content/MyWebAPI",
   "Mode": "Default",
@@ -10,17 +10,17 @@
     {
       "Name": "MyWebAPI/wwwroot",
       "Source": "MyWebAPI",
-      "ContentRoot": "/home/faysal-hossain/Desktop/MyWebAPI/wwwroot/",
+      "ContentRoot": "/home/faysal-hossain/Desktop/dotnet/MyWebAPI/wwwroot/",
       "BasePath": "_content/MyWebAPI",
       "Pattern": "**"
     }
   ],
   "Assets": [
     {
-      "Identity": "/home/faysal-hossain/Desktop/MyWebAPI/wwwroot/index.html",
+      "Identity": "/home/faysal-hossain/Desktop/dotnet/MyWebAPI/wwwroot/index.html",
       "SourceId": "MyWebAPI",
       "SourceType": "Discovered",
-      "ContentRoot": "/home/faysal-hossain/Desktop/MyWebAPI/wwwroot/",
+      "ContentRoot": "/home/faysal-hossain/Desktop/dotnet/MyWebAPI/wwwroot/",
       "BasePath": "_content/MyWebAPI",
       "RelativePath": "index.html",
       "AssetKind": "All",

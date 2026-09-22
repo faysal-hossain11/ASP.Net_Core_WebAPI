@@ -18,4 +18,11 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
+    <!-- Test project files should not compile with Web API project -->
+  <ItemGroup>
+    <Compile Remove="TaskApi.Tests/**/*.cs" />
+    <EmbeddedResource Remove="TaskApi.Tests/**/*.resx" />
+    <None Remove="TaskApi.Tests/**/*" />
+  </ItemGroup>
+
 </Project>
